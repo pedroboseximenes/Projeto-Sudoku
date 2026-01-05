@@ -1,13 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:sudoku_dart/sudoku_dart.dart';
-import 'package:trabalho_sudoku/Quadrado.dart';
-import 'package:trabalho_sudoku/vitoriaTela.dart';
+import 'package:trabalho_sudoku_2/Quadrado.dart';
+import 'package:trabalho_sudoku_2/bancoDados.dart';
+import 'package:trabalho_sudoku_2/telaFimJogo.dart';
+import 'package:intl/intl.dart';
+import 'package:trabalho_sudoku_2/validacoesSudoku.dart';
+
+
 
 class Jogo extends StatefulWidget {
-  Jogo(this.jogo, this.nomeJogador);
+  Jogo(this.jogo, this.nomeJogador, this.idDificuldade);
 
   Sudoku jogo;
   String nomeJogador;
+  int idDificuldade;
 
   @override
   State<Jogo> createState() => _JogoState();
@@ -17,6 +23,7 @@ class _JogoState extends State<Jogo> {
   var valorPressionado;
   var linhaSelecionada;
   var colunaSelecionada;
+  BancoDados sudokuRepository = BancoDados();
 
   List<Widget> controleJogo = [];
   Map<int, List<Quadrado>> mapQuadrados = {};
@@ -30,44 +37,11 @@ class _JogoState extends State<Jogo> {
               crossAxisAlignment: CrossAxisAlignment.center,
               children: <Widget>[
                 Text(mapQuadrados[linha]![coluna].valor == -1
-                    ? ""
-                    : mapQuadrados[linha]![coluna].valor.toString()),
+                    ? "" : mapQuadrados[linha]![coluna].valor.toString()),
               ]),
         ));
   }
 
-  bool validarJogada(linha, coluna, valorNovo) {
-    int linhaInicialSubGrupo = (linha ~/ 3) * 3;
-    int colunaInicialSubGrupo = (coluna ~/ 3) * 3;
-
-    for (var chave in mapQuadrados.keys) {
-      if (coluna != chave && mapQuadrados[linha]![chave].valor == valorNovo) {
-        return false;
-      }
-      if (linha != chave && mapQuadrados[chave]![coluna].valor == valorNovo) {
-        return false;
-      }
-      //Verificar se em qual linha se encontra
-      bool primeiraLinhaSubGrupo = chave >= 0 && chave < 3;
-      bool segundaLinhaSubGrupo = chave >= 3 && chave < 6;
-      bool terceiraLinhaSubGrupo = chave >= 6 && chave < 9;
-
-      //Incrementa da primeira linha do subgrupo até a terceira do subgrupo  dependendo do index do for
-      int linhaSubGrupo = (linhaInicialSubGrupo + (primeiraLinhaSubGrupo ? 0 : segundaLinhaSubGrupo ? 1 :  2));
-      //Incrementa da primeira coluna do subgrupo até a terceira do subgrupo dependendo do index do for
-      int colunaSubGrupo = (colunaInicialSubGrupo + (chave % 3));
-    /*
-      Verificar se está em alguma das linhas do subgrupo E se está verificando um item diferente do inserido 
-      E verifica se os valores são iguais
-     */
-      if ((primeiraLinhaSubGrupo || segundaLinhaSubGrupo || terceiraLinhaSubGrupo) &&
-            (linha != linhaSubGrupo || coluna != colunaSubGrupo) &&
-          mapQuadrados[linhaSubGrupo]![colunaSubGrupo].valor == valorNovo) {
-        return false;
-      }
-    }
-    return true;
-  }
 
   void criarControles() {
     for (int i = 1; i <= 9; i++) {
@@ -87,7 +61,7 @@ class _JogoState extends State<Jogo> {
               i.toString(),
               style: TextStyle(
                   fontSize: 20,
-                  color: Colors.black), // Estilize o texto conforme desejado
+                  color: Colors.black),
             ),
           ),
         ),
@@ -96,14 +70,14 @@ class _JogoState extends State<Jogo> {
     controleJogo.add(
       Flexible(
           child: IconButton(
-        onPressed: () {
-          Navigator.pop(context);
-        },
-        icon: Icon(
-          Icons.restart_alt,
-          size: 28,
-        ),
-      )),
+            onPressed: () {
+              Navigator.pop(context);
+            },
+            icon: Icon(
+              Icons.restart_alt,
+              size: 28,
+            ),
+          )),
     );
   }
 
@@ -119,15 +93,19 @@ class _JogoState extends State<Jogo> {
     }
   }
 
-  validarVitoriaDoUsuario() {
-    for (int index = 0; index < widget.jogo.solution.length; index++) {
-      int linha = index ~/ 9;
-      int coluna = index % 9;
-      if (mapQuadrados[linha]![coluna].valor == -1 || mapQuadrados[linha]![coluna].valor != widget.jogo.solution[index]) {
-        return false;
-      }
-    }
-    return true;
+
+  salvarDadosJogadas(bool ehVitoria) {
+    final formatoBr = DateFormat('dd/MM/yyyy', 'pt_BR');
+    final data =  formatoBr.format(DateTime.now());
+
+    Map<String,dynamic> jogo = {
+      'name' : widget.nomeJogador,
+      'result': ehVitoria ? 1 : 0,
+      'date':data ,
+      'level': widget.idDificuldade,
+    };
+
+    sudokuRepository.inserirJogo(jogo);
   }
 
   @override
@@ -139,12 +117,14 @@ class _JogoState extends State<Jogo> {
 
   @override
   Widget build(BuildContext context) {
-    if (validarVitoriaDoUsuario()) {
+    if (ValidacoesSudoku.validarTodosQuadradosPreenchidos(mapQuadrados, widget.jogo.solution)) {
+      bool ehVitoria = ValidacoesSudoku.validarVitoriaDoUsuario(mapQuadrados, widget.jogo.solution);
+      salvarDadosJogadas(ehVitoria);
       WidgetsBinding.instance.addPostFrameCallback((_) {
         Navigator.push(
             context,
             MaterialPageRoute(
-                builder: (context) => Vitoriatela(widget.nomeJogador)));
+                builder: (context) => telaFimJogo(widget.nomeJogador, ehVitoria)));
       });
     }
     return Scaffold(
@@ -178,20 +158,20 @@ class _JogoState extends State<Jogo> {
 
                 bool selecionouQuadrado = linhaSelecionada == linha && colunaSelecionada == coluna;
                 bool estaInserindoValor = mapQuadrados[linha]![coluna].valor != -1 && widget.jogo.puzzle[index] == -1;
-                bool lugarValidado = estaInserindoValor && validarJogada(linha, coluna, mapQuadrados[linha]![coluna].valor);
+                bool lugarValidado = estaInserindoValor && ValidacoesSudoku.validarJogada(linha, coluna, mapQuadrados[linha]![coluna].valor, mapQuadrados);
 
                 if (estaInserindoValor && lugarValidado) {
                   mapQuadrados[linha]![coluna].cor = Colors.green;
-                } 
+                }
                 else if (estaInserindoValor && !lugarValidado) {
                   mapQuadrados[linha]![coluna].cor = Colors.red;
-                } 
+                }
 
                 return Container(
                   decoration: BoxDecoration(
-                    border: 
-                    selecionouQuadrado ? Border.all(width: 2.15, color: Colors.black) 
-                    : Border(
+                    border:
+                    selecionouQuadrado ? Border.all(width: 2.15, color: Colors.black)
+                        : Border(
                       top: fronteiraTopo
                           ? BorderSide(width: 1.5, color: Colors.black)
                           : BorderSide(width: 0.5, color: Colors.blueGrey),
