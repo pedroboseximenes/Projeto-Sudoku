@@ -46,4 +46,5 @@ flutter pub get
 flutter run
 
 Imagem do Jogo
+
 ![Tela do aplicativo](img/print_jogo.png)
