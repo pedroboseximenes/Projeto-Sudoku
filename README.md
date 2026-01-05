@@ -47,4 +47,12 @@ flutter run
 
 Imagem do Jogo
 
+![Tela do aplicativo](img/telaInicialSudoku.png)
+
+![Tela do aplicativo](img/telaJogoSudoku.png)
+
 ![Tela do aplicativo](img/print_jogo.png)
+
+![Tela do aplicativo](img/telaHistorioJogos.png)
+
+![Tela do aplicativo](img/telaHistoricoJogosFiltradoDificuldade.png)
